@@ -19,7 +19,45 @@ void InitRoutingTbl (struct pkt_INIT_RESPONSE *InitResponse, int myID) {
 	NumRoutes = InitResponse->no_nbr + 1;
 }
 
-int UpdateRoutes(struct pkt_RT_UPDATE *RecvdUpdatePacket, int costToNbr, int myID) { return 0; }
+int UpdateRoutes(struct pkt_RT_UPDATE *RecvdUpdatePacket, int costToNbr, int myID) {
+	int i, j, k, new;
+	int changed = 0;
+	for (j = 0; j < RecvdUpdatePacket->no_routes; j++) {
+		new = 1;
+		for (i = 1; i < NumRoutes; i++) {
+			if (routingTable[i].dest_id == RecvdUpdatePacket->route[j].dest_id) {
+				new = 0;
+				if (RecvdUpdatePacket->route[j].next_hop != myID) {
+					for (k = 1; k < NumRoutes; k++) {
+						if (routingTable[k].dest_id == RecvdUpdatePacket->sender_id) {
+							if ((RecvdUpdatePacket->route[j].cost + routingTable[k].cost < routingTable[i].cost) || routingTable[i].next_hop == RecvdUpdatePacket->sender_id) {
+								routingTable[i].next_hop = RecvdUpdatePacket->sender_id;
+								routingTable[i].cost = RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
+								changed = 1;
+								break;
+							}
+						}
+					}
+					break;
+				}
+			}
+		}
+		if (new) {
+			for (k = 1; k < NumRoutes; k++) {
+				if (routingTable[k].dest_id == RecvdUpdatePacket->sender_id) {
+					routingTable[NumRoutes].dest_id = RecvdUpdatePacket->route[j].dest_id;
+					routingTable[NumRoutes].next_hop = RecvdUpdatePacket->sender_id;
+					routingTable[NumRoutes].cost = RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
+					NumRoutes++;
+					changed = 1;
+					break;
+				}
+			}
+		}
+	}
+	
+	return changed;
+}
 
 void ConvertTabletoPkt(struct pkt_RT_UPDATE *UpdatePacketToSend, int myID) {
   int i;
