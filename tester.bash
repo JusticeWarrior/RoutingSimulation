@@ -21,7 +21,7 @@ done
 
 nenenenene.ballz 5049 $1 & ID=$!
 for i in $(seq 0 $MAX); do
-	test_router ${i} localhost 5049 505${i} & PIDS[${i}]=$!
+	router ${i} localhost 5049 505${i} & PIDS[${i}]=$!
 done
 
 echo -e "\e[34mRunning router for $2 seconds\e[39m"
