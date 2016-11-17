@@ -23,6 +23,8 @@ int UpdateRoutes(struct pkt_RT_UPDATE *RecvdUpdatePacket, int costToNbr, int myI
 	int i, j, k, new;
 	int changed = 0;
 	for (j = 0; j < RecvdUpdatePacket->no_routes; j++) {
+		if (RecvdUpdatePacket->route[j].dest_id == myID)
+		  break;
 		new = 1;
 		for (i = 1; i < NumRoutes; i++) {
 			if (routingTable[i].dest_id == RecvdUpdatePacket->route[j].dest_id) {
@@ -31,9 +33,10 @@ int UpdateRoutes(struct pkt_RT_UPDATE *RecvdUpdatePacket, int costToNbr, int myI
 					for (k = 1; k < NumRoutes; k++) {
 						if (routingTable[k].dest_id == RecvdUpdatePacket->sender_id) {
 							if ((RecvdUpdatePacket->route[j].cost + routingTable[k].cost < routingTable[i].cost) || routingTable[i].next_hop == RecvdUpdatePacket->sender_id) {
+								if (routingTable[i].next_hop != RecvdUpdatePacket->sender_id || routingTable[i].cost != RecvdUpdatePacket->route[j].cost + routingTable[k].cost)
+								  changed=1;
 								routingTable[i].next_hop = RecvdUpdatePacket->sender_id;
 								routingTable[i].cost = RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
-								changed = 1;
 								break;
 							}
 						}

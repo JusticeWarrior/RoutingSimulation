@@ -7,23 +7,57 @@
 #include <sys/select.h>
 #include <netdb.h>
 #include "stdio.h"
+#include <time.h>
+#include <sys/time.h>
 
 #define SOCKET_ERROR -2
 #define BIND_ERROR -3
+#define DEAD 123
+
+struct neighbor_timeout {
+  unsigned int neighbor;
+  unsigned int cost;
+  time_t last_update;
+};
+
+struct neighbor_timeout neighbor_list[MAX_ROUTERS];
+unsigned int num_neighbors;
+time_t last_time_update_sent;
+time_t last_time_table_updated;
+time_t init_time;
+int converged = 0;
+int ID;
+int udp_socket;
+
+FILE* file;
 
 
 int udp_listen(int port);
 struct sockaddr_in get_network(const char* server, int porti, int* found);
 void initialize(int fd, struct sockaddr_in network_address, int id);
 
+
+void handle_update();
+void check_update(struct sockaddr_in network);
+void check_neigbors();
+void check_convergence();
+
 int main(int argc, char** argv) {
-  int ID;
   char* hostname;
   int ne_port;
   int router_port;
-  int udp_socket;
   int found; // Whether or not the host was found
   struct sockaddr_in network_address;
+  fd_set rfds;
+  struct timeval wait_time;
+  char log_file_name[100];
+  sprintf(log_file_name, "router%d.log",ID);
+  file = fopen(log_file_name, "w");
+  #ifdef DEBUG
+  #if DEBUG == 1
+  file = stdout;
+  #endif
+  #endif
 
   // Get argumetns from the argument string
   if (argc != 5) {
@@ -50,8 +84,29 @@ int main(int argc, char** argv) {
   // Request neighbors from the network
   initialize(udp_socket, network_address, ID);
 
+
   // Print the routing table to stdout for now to show that it has been properly initialized
-  PrintRoutes(stdout, ID);
+  fprintf(file, "\nRouting Table:\n");
+  PrintRoutes(file, ID);
+
+  last_time_table_updated = time(0);
+  last_time_update_sent = time(0);
+  init_time = time(0);
+  while(1) {
+    wait_time.tv_sec = UPDATE_INTERVAL;
+    wait_time.tv_usec = 0;
+    FD_ZERO(&rfds);
+    FD_SET(udp_socket, &rfds);
+    select(udp_socket+1, &rfds, NULL, NULL, &wait_time);
+
+    if (FD_ISSET(udp_socket, &rfds))
+      handle_update();
+
+    check_update(network_address);
+    check_neigbors();
+    check_convergence();
+
+  }
 
   return 0;
 
@@ -109,4 +164,81 @@ void initialize(int fd, struct sockaddr_in network, int id){
   len = recvfrom(fd, (char*)&response, sizeof(response),0, (struct sockaddr*)&network,&addr_len);
   ntoh_pkt_INIT_RESPONSE(&response);
   InitRoutingTbl(&response, id);
+
+  num_neighbors =  response.no_nbr;
+  int i;
+  time_t current_time = time(0);
+  for (i=0; i < num_neighbors; i++) {
+    neighbor_list[i].neighbor = response.nbrcost[i].nbr;
+    neighbor_list[i].cost =	response.nbrcost[i].cost;
+    neighbor_list[i].last_update = current_time;
+  }
+
+}
+
+void handle_update() {
+  int i;
+  struct sockaddr_in network;
+  struct pkt_RT_UPDATE update_struct; 
+  socklen_t addr_len=sizeof(struct sockaddr_in);
+  recvfrom(udp_socket, (char*)&update_struct, sizeof(update_struct),0, (struct sockaddr*)&network,&addr_len);
+  ntoh_pkt_RT_UPDATE(&update_struct);
+
+  // Update table
+
+  // Update neighbor timeouts
+  for (i=0; i<num_neighbors; i++) {
+    if(neighbor_list[i].neighbor == update_struct.sender_id) {
+      neighbor_list[i].last_update = time(0);
+	if (UpdateRoutes(&update_struct, neighbor_list[i].cost, ID)) {
+	  converged = 0;
+	  fprintf(file, "\nRouting Table:\n");
+	  PrintRoutes(file, ID);
+
+	}
+      break;
+    }
+  }
+  
+  
+  
+}
+
+void check_update(struct sockaddr_in network) {
+  struct pkt_RT_UPDATE update_struct;
+  socklen_t addr_len=sizeof(struct sockaddr_in);
+  int i;
+
+  if (time(0) - last_time_update_sent >= UPDATE_INTERVAL) {
+    last_time_update_sent = time(0);
+    for (i=0; i<num_neighbors; i++) {
+      ConvertTabletoPkt(&update_struct, ID);// Need to set sender_id and send to all neighbors
+      update_struct.dest_id = neighbor_list[i].neighbor;
+      update_struct.sender_id = ID;
+      hton_pkt_RT_UPDATE(&update_struct);
+      sendto(udp_socket, (char*)(&update_struct), sizeof(update_struct), 0, (struct sockaddr*)(&network), addr_len);
+    }
+  }
+}
+void check_neigbors() {
+  int i;
+  time_t current_time = time(0);
+  for (i=0; i < num_neighbors; i++) {
+    if (current_time - neighbor_list[i].last_update >= FAILURE_DETECTION 
+      && neighbor_list[i].last_update != DEAD) {
+      UninstallRoutesOnNbrDeath(neighbor_list[i].neighbor);
+      neighbor_list[i].last_update = DEAD;
+      // neighbor_list[i].cost = INFINITY;
+      fprintf(file, "\nRouting Table:\n");
+      PrintRoutes(file, ID);
+      last_time_table_updated = time(0);
+      converged=0;
+    }
+  }
+}
+void check_convergence() {
+  if (time(0) - last_time_table_updated >= CONVERGE_TIMEOUT && !converged) {
+    converged = 1;
+    fprintf(file, "%ld:Converged\n", (long)(time(0) - init_time));
+  }
 }
