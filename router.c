@@ -42,6 +42,7 @@ void check_update(struct sockaddr_in network);
 void check_neigbors();
 void check_convergence();
 
+
 int main(int argc, char** argv) {
   char* hostname;
   int ne_port;
@@ -51,13 +52,6 @@ int main(int argc, char** argv) {
   fd_set rfds;
   struct timeval wait_time;
   char log_file_name[100];
-  sprintf(log_file_name, "router%d.log",ID);
-  file = fopen(log_file_name, "w");
-  #ifdef DEBUG
-  #if DEBUG == 1
-  file = stdout;
-  #endif
-  #endif
 
   // Get argumetns from the argument string
   if (argc != 5) {
@@ -68,6 +62,15 @@ int main(int argc, char** argv) {
   hostname = argv[2];
   ne_port = atoi(argv[3]);
   router_port = atoi(argv[4]);
+
+  // Open the log file
+  sprintf(log_file_name, "router%d.log",ID);
+  file = fopen(log_file_name, "w");
+  #ifdef DEBUG
+  #if DEBUG
+  file = stdout;
+  #endif
+  #endif
 
   // Initialize the network connection
   udp_socket = udp_listen(router_port);
@@ -88,6 +91,7 @@ int main(int argc, char** argv) {
   // Print the routing table to stdout for now to show that it has been properly initialized
   fprintf(file, "\nRouting Table:\n");
   PrintRoutes(file, ID);
+  fflush(file);
 
   last_time_table_updated = time(0);
   last_time_update_sent = time(0);
@@ -196,6 +200,7 @@ void handle_update() {
 
 	  fprintf(file, "\nRouting Table:\n");
 	  PrintRoutes(file, ID);
+	  fflush(file);
 
 	}
       break;
@@ -233,6 +238,7 @@ void check_neigbors() {
       // neighbor_list[i].cost = INFINITY;
       fprintf(file, "\nRouting Table:\n");
       PrintRoutes(file, ID);
+      fflush(file);
       last_time_table_updated = time(0);
       converged=0;
     }
@@ -242,5 +248,6 @@ void check_convergence() {
   if (time(0) - last_time_table_updated >= CONVERGE_TIMEOUT && !converged) {
     converged = 1;
     fprintf(file, "%ld:Converged\n", (long)(time(0) - init_time));
+    fflush(file);
   }
 }

@@ -37,12 +37,18 @@ int UpdateRoutes(struct pkt_RT_UPDATE *RecvdUpdatePacket, int costToNbr, int myI
 				if (RecvdUpdatePacket->route[j].next_hop != myID) {
 					// Get info on the neigbor
 					for (k = 1; k < NumRoutes; k++) {
+						int next_hop = RecvdUpdatePacket->sender_id;
+						int next_cost = next_hop == RecvdUpdatePacket->route[j].dest_id ?
+						  costToNbr : RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
+						next_cost = next_cost > INFINITY ? INFINITY : next_cost;
 						if (routingTable[k].dest_id == RecvdUpdatePacket->sender_id) {
-							if ((RecvdUpdatePacket->route[j].cost + routingTable[k].cost < routingTable[i].cost) || routingTable[i].next_hop == RecvdUpdatePacket->sender_id) {
+							if ((next_cost < routingTable[i].cost) || routingTable[i].next_hop == RecvdUpdatePacket->sender_id) {
+								/*
 								int next_hop = RecvdUpdatePacket->sender_id;
 								int next_cost = next_hop == RecvdUpdatePacket->route[j].dest_id ?
 								  costToNbr : RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
 								next_cost = next_cost > INFINITY ? INFINITY : next_cost;
+								*/
 								/*
 								if (routingTable[i].next_hop != RecvdUpdatePacket->sender_id || routingTable[i].cost != RecvdUpdatePacket->route[j].cost + routingTable[k].cost)
 								  changed=1;
