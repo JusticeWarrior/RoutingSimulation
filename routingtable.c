@@ -22,21 +22,37 @@ void InitRoutingTbl (struct pkt_INIT_RESPONSE *InitResponse, int myID) {
 int UpdateRoutes(struct pkt_RT_UPDATE *RecvdUpdatePacket, int costToNbr, int myID) {
 	int i, j, k, new;
 	int changed = 0;
+	// Iterate through all routes to update in the packet
 	for (j = 0; j < RecvdUpdatePacket->no_routes; j++) {
 		if (RecvdUpdatePacket->route[j].dest_id == myID)
-		  break;
+		  continue;
 		new = 1;
+
+		// Iterate through all entries in the table
 		for (i = 1; i < NumRoutes; i++) {
+			// If the given route corresponds to this entry
 			if (routingTable[i].dest_id == RecvdUpdatePacket->route[j].dest_id) {
 				new = 0;
+				// Split horizon rule, no loopback
 				if (RecvdUpdatePacket->route[j].next_hop != myID) {
+					// Get info on the neigbor
 					for (k = 1; k < NumRoutes; k++) {
 						if (routingTable[k].dest_id == RecvdUpdatePacket->sender_id) {
 							if ((RecvdUpdatePacket->route[j].cost + routingTable[k].cost < routingTable[i].cost) || routingTable[i].next_hop == RecvdUpdatePacket->sender_id) {
+								int next_hop = RecvdUpdatePacket->sender_id;
+								int next_cost = next_hop == RecvdUpdatePacket->route[j].dest_id ?
+								  costToNbr : RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
+								next_cost = next_cost > INFINITY ? INFINITY : next_cost;
+								/*
 								if (routingTable[i].next_hop != RecvdUpdatePacket->sender_id || routingTable[i].cost != RecvdUpdatePacket->route[j].cost + routingTable[k].cost)
 								  changed=1;
 								routingTable[i].next_hop = RecvdUpdatePacket->sender_id;
 								routingTable[i].cost = RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
+								*/
+								if (routingTable[i].next_hop != next_hop || routingTable[i].cost != next_cost)
+								      changed = 1;
+								routingTable[i].next_hop = next_hop;
+								routingTable[i].cost = next_cost;
 								break;
 							}
 						}

@@ -19,7 +19,8 @@
 #define MAX_ROUTERS 10 /* max # of routers in the system */
 #define MAX_PATH_LEN (MAX_ROUTERS - 1)
 #define PACKETSIZE 1024 /* assume packet size large enough to contain a full routing table */
-#define INFINITY 999 /* Cost to a unreacheable destination router */
+//#define INFINITY 999 /* Cost to a unreacheable destination router */
+#define INFINITY 100
 #define UPDATE_INTERVAL 1 /* router sends routing updates every 1 sec */
 #define FAILURE_DETECTION (UPDATE_INTERVAL * 3) /* not receiving a nbr's update more than 3 update cycles = 3 * UPDATE_INTERVAL, consider it dead */
 #define CONVERGE_TIMEOUT (UPDATE_INTERVAL * 5) /* if routing table is not changed after 5 update cycles, assume converged */

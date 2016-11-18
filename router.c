@@ -192,6 +192,8 @@ void handle_update() {
       neighbor_list[i].last_update = time(0);
 	if (UpdateRoutes(&update_struct, neighbor_list[i].cost, ID)) {
 	  converged = 0;
+	  last_time_table_updated = time(0);
+
 	  fprintf(file, "\nRouting Table:\n");
 	  PrintRoutes(file, ID);
 
