@@ -20,7 +20,7 @@ void InitRoutingTbl (struct pkt_INIT_RESPONSE *InitResponse, int myID) {
 }
 
 int UpdateRoutes(struct pkt_RT_UPDATE *RecvdUpdatePacket, int costToNbr, int myID) {
-	int i, j, k, new;
+	int i, j, new;
 	int changed = 0;
 	// Iterate through all routes to update in the packet
 	for (j = 0; j < RecvdUpdatePacket->no_routes; j++) {
