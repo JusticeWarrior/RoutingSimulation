@@ -28,7 +28,7 @@ int UpdateRoutes(struct pkt_RT_UPDATE *RecvdUpdatePacket, int costToNbr, int myI
 		  continue;
 		new = 1;
 
-		// Iterate through all entries in the table
+		// Find the matching table entry
 		for (i = 1; i < NumRoutes; i++) {
 			// If the given route corresponds to this entry
 			if (routingTable[i].dest_id == RecvdUpdatePacket->route[j].dest_id) {
@@ -36,53 +36,32 @@ int UpdateRoutes(struct pkt_RT_UPDATE *RecvdUpdatePacket, int costToNbr, int myI
 				// Split horizon rule, no loopback
 				if (RecvdUpdatePacket->route[j].next_hop != myID) {
 					// Get info on the neigbor
-					for (k = 1; k < NumRoutes; k++) {
-						int next_hop = RecvdUpdatePacket->sender_id;
-						int next_cost = next_hop == RecvdUpdatePacket->route[j].dest_id ?
-						  costToNbr : RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
-						next_cost = next_cost > INFINITY ? INFINITY : next_cost;
-						if (routingTable[k].dest_id == RecvdUpdatePacket->sender_id) {
-							if ((next_cost < routingTable[i].cost) || routingTable[i].next_hop == RecvdUpdatePacket->sender_id) {
-								/*
-								int next_hop = RecvdUpdatePacket->sender_id;
-								int next_cost = next_hop == RecvdUpdatePacket->route[j].dest_id ?
-								  costToNbr : RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
-								next_cost = next_cost > INFINITY ? INFINITY : next_cost;
-								*/
-								/*
-								if (routingTable[i].next_hop != RecvdUpdatePacket->sender_id || routingTable[i].cost != RecvdUpdatePacket->route[j].cost + routingTable[k].cost)
-								  changed=1;
-								routingTable[i].next_hop = RecvdUpdatePacket->sender_id;
-								routingTable[i].cost = RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
-								*/
-								if (routingTable[i].next_hop != next_hop || routingTable[i].cost != next_cost)
-								      changed = 1;
-								routingTable[i].next_hop = next_hop;
-								routingTable[i].cost = next_cost;
-								break;
-							}
-						}
+					int next_hop = RecvdUpdatePacket->sender_id;
+					int next_cost = next_hop == RecvdUpdatePacket->route[j].dest_id ?
+					  costToNbr : RecvdUpdatePacket->route[j].cost + costToNbr;
+					next_cost = next_cost > INFINITY ? INFINITY : next_cost;
+					if ((next_cost < routingTable[i].cost) || routingTable[i].next_hop == RecvdUpdatePacket->sender_id) {
+
+						if (routingTable[i].next_hop != next_hop || routingTable[i].cost != next_cost)
+						      changed = 1;
+						routingTable[i].next_hop = next_hop;
+						routingTable[i].cost = next_cost;
 					}
-					break;
 				}
-				// If loop back happens for some reason, stop it
-				else if (routingTable[i].next_hop = RecvdUpdatePacket->sender_id) {
+				else if (routingTable[i].next_hop == RecvdUpdatePacket->sender_id && routingTable[i].cost != INFINITY) {
+				  //printf("%d-%d dependency to get to node %d!\n",myID, RecvdUpdatePacket->sender_id, routingTable[i].dest_id);
 				  routingTable[i].cost = INFINITY;
 				  changed=1;
 				}
+				break;
 			}
 		}
 		if (new) {
-			for (k = 1; k < NumRoutes; k++) {
-				if (routingTable[k].dest_id == RecvdUpdatePacket->sender_id) {
-					routingTable[NumRoutes].dest_id = RecvdUpdatePacket->route[j].dest_id;
-					routingTable[NumRoutes].next_hop = RecvdUpdatePacket->sender_id;
-					routingTable[NumRoutes].cost = RecvdUpdatePacket->route[j].cost + routingTable[k].cost;
-					NumRoutes++;
-					changed = 1;
-					break;
-				}
-			}
+			routingTable[NumRoutes].dest_id = RecvdUpdatePacket->route[j].dest_id;
+			routingTable[NumRoutes].next_hop = RecvdUpdatePacket->sender_id;
+			routingTable[NumRoutes].cost = RecvdUpdatePacket->route[j].cost + costToNbr;
+			NumRoutes++;
+			changed = 1;
 		}
 	}
 	
