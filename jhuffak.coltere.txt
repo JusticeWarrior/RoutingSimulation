@@ -1,1 +1,9 @@
-All unit tests pass and the rounter.c initialization functionality works.
+All unit tests pass and the router should be fully functional.
+
+If a router is suspended using CTRL+Z, the other routers should be able
+to sucessfully detect that it is missing and update their tables accordingly.
+(It may be stopped other ways but using CTRL+Z made it easy to start it
+again)
+
+After bringing the stopped router back with "fg", the other routers should be
+able receive updates and add it back into their routing tables.
