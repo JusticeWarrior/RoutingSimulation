@@ -65,6 +65,11 @@ int UpdateRoutes(struct pkt_RT_UPDATE *RecvdUpdatePacket, int costToNbr, int myI
 					}
 					break;
 				}
+				// If loop back happens for some reason, stop it
+				else if (routingTable[i].next_hop = RecvdUpdatePacket->sender_id) {
+				  routingTable[i].cost = INFINITY;
+				  changed=1;
+				}
 			}
 		}
 		if (new) {
